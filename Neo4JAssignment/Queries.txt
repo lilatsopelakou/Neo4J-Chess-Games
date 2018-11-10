@@ -1,0 +1,86 @@
+Q1:
+
+MATCH (g:Game)
+WHERE (g.result='White')
+WITH collect(g.gameNumber) as whitewinners
+MATCH (n1:Position)-[r:MOVE]->(n2:Position)
+WHERE (n1.FEN = 'r1bqkbnrpppp1ppp2n51B2p34P35N2PPPP1PPPRNBQK2R' OR n2.FEN ='r1bqkbnrpppp1ppp2n51B2p34P35N2PPPP1PPPRNBQK2R') AND (r.gameNumber) in whitewinners
+WITH count(DISTINCT (r.gameNumber)) AS WHITEWITHFEN
+MATCH (n1:Position)-[r1:MOVE]->(n2:Position)
+WHERE (n1.FEN = 'r1bqkbnrpppp1ppp2n51B2p34P35N2PPPP1PPPRNBQK2R' OR n2.FEN ='r1bqkbnrpppp1ppp2n51B2p34P35N2PPPP1PPPRNBQK2R')
+WITH 100*WHITEWITHFEN/count(DISTINCT(r1.gameNumber)) AS percent, count(DISTINCT(r1.gameNumber)) as gameswithfen
+RETURN  gameswithfen, percent
+
+
+Q2:
+
+MATCH ()-[r:MOVE]->(n2:Position)
+WHERE n2.FEN ='r1bqkbnrpppp1ppp2n51B2p34P35N2PPPP1PPPRNBQK2R' 
+WITH collect(DISTINCT(r.gameNumber)) AS AVECFEN
+MATCH (g:Game)
+WHERE g.gameNumber IN AVECFEN
+UNWIND g.result AS FinalResult
+RETURN FinalResult,COUNT(g) AS NumberofGames
+
+
+Q3:
+
+MATCH (p:Game)-[r:CONTEXTOF]->(e:Event) 
+UNWIND e.event AS Ev
+WITH Ev, COUNT(r) AS cnt
+ORDER BY cnt DESC
+WITH COLLECT([Ev, cnt]) AS events
+UNWIND events AS EV
+WITH EV
+WHERE EV[1]=events[0][1]
+WITH COLLECT(EV[0]) AS even
+MATCH (p1:Game)-[r2:CONTEXTOF]->(e2:Event) 
+WHERE e2.event IN even
+WITH COLLECT([p1.gameNumber, e2.event]) AS games
+UNWIND games AS GM
+MATCH (pl:Player)-[r3:PLAYED]->(g:Game) 
+WHERE  pl.name='Karpov  Anatoly' AND g.gameNumber IN GM[0] 
+WITH count(g.gameNumber) AS NumberofGamesAnatolyPlayed, GM[1] AS Event, games AS games
+UNWIND games AS GM2
+WITH GM2, NumberofGamesAnatolyPlayed,Event
+WHERE GM2[1]=Event
+RETURN  Event, count(GM2[1]) AS Total_Games, NumberofGamesAnatolyPlayed
+
+
+Q4:
+
+MATCH (a:Player)-[:PLAYED]->(g:Game)
+WHERE g.opening='Ruy Lopez'
+RETURN a.name AS name, count(a.name) as occurrences
+ORDER BY occurrences DESC
+LIMIT 1
+
+
+Q5:
+
+MATCH ()-[r2:MOVE {move: 'Nc6'}]->()-[r3:MOVE {move: 'Bb5'}]->()-[r4:MOVE {move: 'a6'}]->()
+WITH collect(DISTINCT r4.gameNumber) as moveordering
+MATCH (p:Player)-[pl:PLAYED]->(g:Game)
+WHERE g.gameNumber in moveordering
+RETURN count(distinct(g.gameNumber)) as total_games_with_move_sequence, collect(DISTINCT(p)) as players
+
+
+Q6:
+
+MATCH ()-[r1:MOVE]->(p1:Position)
+MATCH (n:Game)-[c:CONTEXTOF]->(e:Event)
+MATCH (p:Player)-[pl:PLAYED]->(n:Game)
+WHERE r1.gameNumber = 636 and n.gameNumber = 636
+RETURN n as game, r1 as move, p1 as positionaftermove, e as event, pl as color, p as player, n.opening as opening,n.result as result,n.moves as moves
+
+
+Q7:
+
+MATCH (n1:Position{FEN:'r1bqkbnrpppp1ppp2n51B2p34P35N2PPPP1PPPRNBQK2R'})-[r2:MOVE]->()
+WHERE r2.move<>'a6'
+WITH collect([r2.gameNumber, r2.move]) AS results, r2.gameNumber AS gamenumbers
+UNWIND results as games_alternative_moves
+MATCH (g:Game)
+where g.gameNumber IN games_alternative_moves 
+RETURN g.gameNumber AS GameNumber, g.result AS FinalResult, games_alternative_moves[1] as Alternative_Move
+ORDER BY g.gameNumber ASC

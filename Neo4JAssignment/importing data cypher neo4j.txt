@@ -1,0 +1,57 @@
+// Create node game
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///game.csv" AS row
+CREATE (:Game {gameNumber: TOINT(row.GameNumber), moves: row.Moves, opening: row.Opening, result: row.Result});
+
+// Create node event
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///event.csv" AS row
+CREATE (:Event {event: row.Event});
+
+// Create node player
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///player.csv" AS row
+CREATE (:Player {name: row.Player});
+
+//Creating indexes
+CREATE INDEX ON:Game(gameNumber);
+CREATE INDEX ON:Game(result);
+CREATE INDEX ON:Player(name);
+CREATE INDEX ON:Event(event);
+
+// Create relationship between game and event
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///reg.csv" AS row
+MATCH (game:Game {gameNumber: TOINT(row.GameNumber)})
+MATCH (event:Event {event:row.Event})
+MERGE(game)-[:CONTEXTOF]->(event)
+
+// Create relationship between game and player
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///rpg.csv" AS row
+MATCH (game:Game {gameNumber: TOINT(row.GameNumber)})
+MATCH (player:Player {name:row.Player})
+MERGE(player)-[:PLAYED{color: row.Color}]->(game)
+
+// Create position
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///position.csv" AS row
+CREATE (:Position {FEN: row.Position});
+
+//Creating indexes
+CREATE INDEX ON:Position(FEN);
+
+// Create relationship between game and position
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///rgpos.csv" AS row
+MATCH (game:Game {gameNumber: TOINT(row.GameNumber)})
+MATCH (position:Position {FEN:row.FEN})
+MERGE(game)-[:MOVE{gameNumber: TOINT(row.GameNumber), movenumber:row.MoveNumber, move:row.Move, side:row.Side}]->(position)
+
+// Create relationship between position and position
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///rpospos.csv" AS row
+MATCH (game:Game {gameNumber: TOINT(row.GameNumberBefore)})
+MATCH (positionBefore:Position {FEN:row.FENBefore})
+MATCH (positionAfter:Position {FEN:row.FENAfter})
+MERGE(positionBefore)-[:MOVE{gameNumber: TOINT(row.GameNumberBefore), movenumber:row.MoveNumberAfter, move:row.MoveAfter, side:row.SideAfter}]->(positionAfter)
